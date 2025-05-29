@@ -1,0 +1,193 @@
+package com.omega.retail.service;
+
+import com.omega.retail.dto.dtos.FixedIntervalPolicyDTO;
+import com.omega.retail.dto.dtos.FixedLotPolicyDTO;
+import com.omega.retail.dto.dtos.ProductProviderDTO;
+import com.omega.retail.dto.request.ProductRequest;
+import com.omega.retail.dto.response.ProductProviderResponse;
+import com.omega.retail.dto.response.ProductResponse;
+import com.omega.retail.entity.*;
+import com.omega.retail.enums.InventoryPolicy;
+import com.omega.retail.enums.ProductState;
+import com.omega.retail.enums.PurchaseOrderState;
+import com.omega.retail.repository.ProductRepository;
+import com.omega.retail.repository.ProviderRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Service
+public class ProductService {
+
+    private final ProductRepository productRepository;
+    private final ProviderRepository providerRepository;
+    
+    @Autowired
+    public ProductService(ProductRepository productRepository, ProviderRepository providerRepository) {
+        this.productRepository = productRepository;
+        this.providerRepository = providerRepository;
+    }
+    
+    public ProductResponse createProduct(ProductRequest request) {
+        Product product = Product.builder()
+                .code(request.getCode())
+                .description(request.getDescription())
+                .currentStock(request.getCurrentStock())
+                .annualDemand(request.getAnnualDemand())
+                .storageCost(request.getStorageCost())
+                .productState(ProductState.AlTA)
+                .inventoryPolicy(request.getInventoryPolicy())
+                .build();
+
+        if(request.getInventoryPolicy() == InventoryPolicy.INTERVALO_FIJO){
+            FixedIntervalPolicy fixedIntervalPolicy = new FixedIntervalPolicy();
+            fixedIntervalPolicy.setSafetyStock(request.getSafetyStock());
+            fixedIntervalPolicy.setReviewIntervalDays(request.getReviewIntervalDays());
+            product.setFixedIntervalPolicy(fixedIntervalPolicy);
+        }
+
+        if(request.getInventoryPolicy() == InventoryPolicy.LOTE_FIJO){
+            FixedLotPolicy fixedLotPolicy = new FixedLotPolicy();
+            fixedLotPolicy.setSafetyStock(request.getSafetyStock());
+            product.setFixedLotPolicy(fixedLotPolicy);
+        }
+
+        if (request.getProviders() != null) {
+            List<ProductProvider> productProviderList = new ArrayList<>();
+            for (ProductProviderDTO dto : request.getProviders()) {
+                Provider provider = providerRepository.findById(dto.getProviderId())
+                        .orElseThrow(() -> new RuntimeException("Provider not found"));
+                ProductProvider pp = ProductProvider.builder()
+                        .product(product)
+                        .provider(provider)
+                        .unitCost(dto.getUnitCost())
+                        .leadTime(dto.getLeadTime())
+                        .shippingCost(dto.getShippingCost())
+                        .isDefault(dto.getIsDefault())
+                        .build();
+                productProviderList.add(pp);
+            }
+            product.setProductProviders(productProviderList);
+        }
+
+    
+        product = productRepository.save(product);
+    
+        return toResponse(product);
+    }
+    
+    public List<ProductResponse> getAll() {
+        return productRepository.findAll().stream().map(this::toResponse).collect(Collectors.toList());
+    }
+    
+    public ProductResponse getById(Long id) {
+        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+        return toResponse(product);
+    }
+    
+    public ProductResponse update(Long id, ProductRequest request) {
+        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+    
+        product.setCode(request.getCode());
+        product.setDescription(request.getDescription());
+        product.setCurrentStock(request.getCurrentStock());
+        product.setAnnualDemand(request.getAnnualDemand());
+        product.setStorageCost(request.getStorageCost());
+        product.setInventoryPolicy(request.getInventoryPolicy());
+    
+        product = productRepository.save(product);
+
+    
+        if (request.getProviders() != null) {
+            List<ProductProvider> productProviders = product.getProductProviders();
+            for (ProductProviderDTO dto : request.getProviders()) {
+                Provider provider = providerRepository.findById(dto.getProviderId())
+                        .orElseThrow(() -> new RuntimeException("Provider not found"));
+                ProductProvider pp = ProductProvider.builder()
+                        .product(product)
+                        .provider(provider)
+                        .unitCost(dto.getUnitCost())
+                        .leadTime(dto.getLeadTime())
+                        .shippingCost(dto.getShippingCost())
+                        .isDefault(dto.getIsDefault())
+                        .build();
+                productProviders.add(pp);
+            }
+            product.setProductProviders(productProviders);
+        }
+        product = productRepository.save(product);
+    
+        return toResponse(product);
+    }
+    
+    public void delete(Long id) {
+        if (productRepository.existsByCurrentStock(id)){
+            throw new RuntimeException("Product has current stock");
+        }
+        if (productRepository.existsByActivePurchaseOrder(id, List.of(PurchaseOrderState.PENDIENTE, PurchaseOrderState.ENVIADA))) {
+            throw new RuntimeException("Product is associated with a sent or pending purchase order");
+        }
+        Optional<Product> productOptional = productRepository.findById(id);
+        if(productOptional.isPresent()){
+            Product product = productOptional.get();
+            product.setDeactivationDate(LocalDate.now());
+            product.setProductState(ProductState.BAJA);
+            productRepository.save(product);
+        }else {
+            throw new RuntimeException("Product not found");
+        }
+    }
+    
+    private ProductResponse toResponse(Product product) {
+    
+        List<ProductProviderResponse> providerResponses = product.getProductProviders().stream().map(pp ->
+                ProductProviderResponse.builder()
+                        .providerId(pp.getProvider().getId())
+                        .providerName(pp.getProvider().getName())
+                        .unitCost(pp.getUnitCost())
+                        .leadTime(pp.getLeadTime())
+                        .shippingCost(pp.getShippingCost())
+                        .isDefault(pp.getIsDefault())
+                        .build()
+        ).collect(Collectors.toList());
+    
+        FixedLotPolicyDTO lotPolicy = null;
+        FixedIntervalPolicyDTO intervalPolicy = null;
+    
+        if (product.getInventoryPolicy() == InventoryPolicy.LOTE_FIJO) {
+            lotPolicy = FixedLotPolicyDTO.builder()
+                    .safetyStock(product.getFixedLotPolicy().getSafetyStock())
+                    .optimalLotSize(product.getFixedLotPolicy().getOptimalLotSize())
+                    .reorderPoint(product.getFixedLotPolicy().getReorderPoint())
+                    .build();
+        } else if (product.getInventoryPolicy() == InventoryPolicy.INTERVALO_FIJO) {
+            intervalPolicy = FixedIntervalPolicyDTO.builder()
+                    .lastReviewDate(product.getFixedIntervalPolicy().getLastReviewDate())
+                    .maxInventoryLevel(product.getFixedIntervalPolicy().getMaxInventoryLevel())
+                    .reviewIntervalDays(product.getFixedIntervalPolicy().getReviewIntervalDays())
+                    .safetyStock(product.getFixedLotPolicy().getSafetyStock())
+                    .build();
+        }
+    
+        return ProductResponse.builder()
+                .id(product.getId())
+                .code(product.getCode())
+                .description(product.getDescription())
+                .currentStock(product.getCurrentStock())
+                .annualDemand(product.getAnnualDemand())
+                .storageCost(product.getStorageCost())
+                .totalCost(product.getTotalCost())
+                .deactivationDate(product.getDeactivationDate())
+                .productState(product.getProductState())
+                .inventoryPolicy(product.getInventoryPolicy())
+                .fixedLotPolicy(lotPolicy)
+                .fixedIntervalPolicy(intervalPolicy)
+                .providers(providerResponses)
+                .build();
+    }
+}
