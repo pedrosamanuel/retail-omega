@@ -36,6 +36,12 @@ public class ProviderController {
         return ResponseEntity.ok(list);
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<List<ProviderResponse>> getProvidersNotDeactivated() {
+        List<ProviderResponse> response = providerService.getProvidersNotDeactivated();
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<ProviderResponse> updateProvider(@PathVariable Long id,
                                                            @RequestBody @Valid ProviderRequest request) {

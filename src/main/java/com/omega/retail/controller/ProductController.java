@@ -44,4 +44,19 @@ public class ProductController {
         productService.delete(id);
         return ResponseEntity.status(204).build();
     }
+
+    @PutMapping("/{productId}/providers/{providerId}")
+    public ResponseEntity<String> setDefaultProvider(@PathVariable Long productId, @PathVariable Long providerId){
+        productService.setDefaultProvider(productId,providerId);
+        return ResponseEntity.ok("Provider set default correctly");
+    }
+
+    @GetMapping("/belowSecurityStock")
+    public ResponseEntity<List<ProductResponse>> getProductsBelowSecurityStock() {
+        return ResponseEntity.ok(productService.getProductsBelowSecurityStock());
+    }
+    @GetMapping("/belowReorderPoint")
+    public ResponseEntity<List<ProductResponse>> getProductsBelowReorderPoint() {
+        return ResponseEntity.ok(productService.getProductsBelowReorderPointWithoutPendingOrders());
+    }
 }

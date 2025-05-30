@@ -46,6 +46,11 @@ public class ProviderService {
                 .collect(Collectors.toList());
     }
 
+    public List<ProviderResponse> getProvidersNotDeactivated() {
+        return providerRepository.findByNotDeactivated().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
     public ProviderResponse updateProvider(Long id, ProviderRequest request) {
         Provider provider = providerRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Provider not found with " + id));

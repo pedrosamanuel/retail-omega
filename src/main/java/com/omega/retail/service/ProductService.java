@@ -12,6 +12,7 @@ import com.omega.retail.enums.ProductState;
 import com.omega.retail.enums.PurchaseOrderState;
 import com.omega.retail.repository.ProductRepository;
 import com.omega.retail.repository.ProviderRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -68,16 +69,14 @@ public class ProductService {
                         .unitCost(dto.getUnitCost())
                         .leadTime(dto.getLeadTime())
                         .shippingCost(dto.getShippingCost())
-                        .isDefault(dto.getIsDefault())
                         .build();
                 productProviderList.add(pp);
             }
             product.setProductProviders(productProviderList);
         }
 
-    
         product = productRepository.save(product);
-    
+
         return toResponse(product);
     }
     
@@ -89,7 +88,7 @@ public class ProductService {
         Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
         return toResponse(product);
     }
-    
+    @Transactional
     public ProductResponse update(Long id, ProductRequest request) {
         Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
     
@@ -104,7 +103,7 @@ public class ProductService {
 
     
         if (request.getProviders() != null) {
-            List<ProductProvider> productProviders = product.getProductProviders();
+            List<ProductProvider> productProviders = new ArrayList<>();
             for (ProductProviderDTO dto : request.getProviders()) {
                 Provider provider = providerRepository.findById(dto.getProviderId())
                         .orElseThrow(() -> new RuntimeException("Provider not found"));
@@ -114,12 +113,12 @@ public class ProductService {
                         .unitCost(dto.getUnitCost())
                         .leadTime(dto.getLeadTime())
                         .shippingCost(dto.getShippingCost())
-                        .isDefault(dto.getIsDefault())
                         .build();
                 productProviders.add(pp);
             }
             product.setProductProviders(productProviders);
         }
+        updateCalculatedFields(product);
         product = productRepository.save(product);
     
         return toResponse(product);
@@ -142,7 +141,27 @@ public class ProductService {
             throw new RuntimeException("Product not found");
         }
     }
-    
+
+    @Transactional
+    public void setDefaultProvider(Long productId, Long providerId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+        Provider provider = providerRepository.findById(providerId)
+                .orElseThrow(() -> new RuntimeException("Provider not found"));
+        productRepository.unsetAllDefaultByProduct(productId);
+        productRepository.setDefaultById(productId, providerId);
+        updateCalculatedFields(product);
+    }
+
+    public List<ProductResponse> getProductsBelowSecurityStock() {
+        return productRepository.findBelowStockSecurity().stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    public List<ProductResponse> getProductsBelowReorderPointWithoutPendingOrders(){
+        return productRepository.findBelowReorderPointWithoutPendingOrders(List.of(PurchaseOrderState.PENDIENTE,PurchaseOrderState.ENVIADA))
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
     private ProductResponse toResponse(Product product) {
     
         List<ProductProviderResponse> providerResponses = product.getProductProviders().stream().map(pp ->
@@ -170,7 +189,7 @@ public class ProductService {
                     .lastReviewDate(product.getFixedIntervalPolicy().getLastReviewDate())
                     .maxInventoryLevel(product.getFixedIntervalPolicy().getMaxInventoryLevel())
                     .reviewIntervalDays(product.getFixedIntervalPolicy().getReviewIntervalDays())
-                    .safetyStock(product.getFixedLotPolicy().getSafetyStock())
+                    .safetyStock(product.getFixedIntervalPolicy().getSafetyStock())
                     .build();
         }
     
@@ -190,4 +209,188 @@ public class ProductService {
                 .providers(providerResponses)
                 .build();
     }
+
+    public void updateCalculatedFields(Product product) {
+        ProductProvider defaultProvider = product.getProductProviders().stream()
+                .filter(ProductProvider::getIsDefault)
+                .findFirst()
+                .orElse(null);
+
+        Integer demand = product.getAnnualDemand();
+        Double storageCost = product.getStorageCost();
+
+        // === LOTE ÓPTIMO ===
+        if (validateOptimalLotSizeFields(product)) {
+            // Lote óptimo = sqrt((2 * D * S) / H)
+            // donde:
+            // D = demanda anual
+            // S = costo de envío
+            // H = costo de almacenamiento
+
+            Double shippingCost = defaultProvider.getShippingCost();
+
+            Integer optimalLotSize = (int) Math.sqrt((2*demand*shippingCost)/storageCost);
+
+            product.getFixedLotPolicy().setOptimalLotSize(optimalLotSize);
+        }
+
+        // === PUNTO DE PEDIDO ===
+        if (validateReorderPointFields(product)) {
+            // Punto de pedido = d * L + SS
+            // donde:
+            // d = demanda diaria = D / 365
+            // L = lead time
+            // SS = stock de seguridad
+
+            Integer leadTime = defaultProvider.getLeadTime();
+            Integer dailyDemand = demand/365;
+            Integer safetyStock = product.getFixedLotPolicy().getSafetyStock();
+
+            Integer reorderPoint = dailyDemand * leadTime + safetyStock;
+
+            product.getFixedLotPolicy().setReorderPoint(reorderPoint);
+        }
+
+        // === INVENTARIO MÁXIMO ===
+        if (validateMaxInventoryLevelFields(product)) {
+            // Inventario máximo = d * (T + L) + SS
+            // donde:
+            // d = demanda diaria = D / 365
+            // T = intervalo de revisión (en días)
+            // L = lead time
+            // SS = stock de seguridad
+
+            Integer leadTime = defaultProvider.getLeadTime();
+            Integer dailyDemand = demand/365;
+            Integer safetyStock = product.getFixedIntervalPolicy().getSafetyStock();
+            Integer reviewIntervalDays = product.getFixedIntervalPolicy().getReviewIntervalDays();
+
+            Integer maxInventoryLevel = dailyDemand * (leadTime + reviewIntervalDays) + safetyStock;
+
+            product.getFixedIntervalPolicy().setMaxInventoryLevel(maxInventoryLevel);
+        }
+
+        // === COSTO TOTAL ===
+        if (validateTotalCostFields(product)) {
+            if (product.getInventoryPolicy() == InventoryPolicy.LOTE_FIJO) {
+                // Costo total = (D / Q) * S + (Q / 2) * H + D * C
+                // donde:
+                // D = demanda anual
+                // Q = tamaño de lote óptimo
+                // S = costo de envío
+                // H = costo de almacenamiento anual por unidad
+                // C = costo unitario
+
+                Double unitCost =  defaultProvider.getUnitCost();
+                Integer optimalLot = product.getFixedLotPolicy().getOptimalLotSize();
+                Double shippingCost = defaultProvider.getShippingCost();
+
+                Double totalCost = (demand/optimalLot)*shippingCost + (optimalLot/2)*storageCost + demand*unitCost;
+
+                product.setTotalCost(totalCost);
+            } else if (product.getInventoryPolicy() == InventoryPolicy.INTERVALO_FIJO) {
+                // Costo total = D * C + (D / Q) * S + ((Imax - d * L) / 2) * H
+                // donde:
+                // D = demanda anual
+                // Q = cantidad pedida por vez = d * T
+                // S = costo de envío
+                // Imax = inventario máximo
+                // d = demanda diaria = D / 365
+                // L = lead time
+                // H = costo de almacenamiento
+                // C = costo unitario
+
+                Double unitCost =  defaultProvider.getUnitCost();
+                Double shippingCost = defaultProvider.getShippingCost();
+                Integer dailyDemand = demand/365;
+                Integer leadTime = defaultProvider.getLeadTime();
+                Integer maxInventoryLevel = product.getFixedIntervalPolicy().getMaxInventoryLevel();
+                Integer reviewIntervalDays = product.getFixedIntervalPolicy().getReviewIntervalDays();
+
+                Double totalCost = demand*unitCost + (demand/(dailyDemand*reviewIntervalDays))*shippingCost + ((maxInventoryLevel-dailyDemand*leadTime)/2)*storageCost;
+
+
+                product.setTotalCost(totalCost);
+            }
+        }
+        productRepository.save(product);
+    }
+
+    public boolean validateTotalCostFields(Product product) {
+        if (product.getAnnualDemand() == null || product.getStorageCost() == null) {
+            return false;
+        }
+
+        ProductProvider defaultProvider = product.getProductProviders().stream()
+                .filter(ProductProvider::getIsDefault)
+                .findFirst()
+                .orElse(null);
+
+        if (defaultProvider == null ||
+                defaultProvider.getShippingCost() == null ||
+                defaultProvider.getUnitCost() == null) {
+            return false;
+        }
+
+        switch (product.getInventoryPolicy()) {
+            case LOTE_FIJO:
+                FixedLotPolicy lotPolicy = product.getFixedLotPolicy();
+                return lotPolicy != null && lotPolicy.getOptimalLotSize() != null;
+
+            case INTERVALO_FIJO:
+                FixedIntervalPolicy intervalPolicy = product.getFixedIntervalPolicy();
+                return intervalPolicy != null &&
+                        intervalPolicy.getReviewIntervalDays() != null &&
+                        intervalPolicy.getMaxInventoryLevel() != null &&
+                        defaultProvider.getLeadTime() != null;
+
+
+            default:
+                return false;
+        }
+    }
+    public boolean validateOptimalLotSizeFields(Product product) {
+        if (product.getAnnualDemand() == null || product.getStorageCost() == null) {
+            return false;
+        }
+
+        ProductProvider defaultProvider = product.getProductProviders().stream()
+                .filter(ProductProvider::getIsDefault)
+                .findFirst()
+                .orElse(null);
+
+        return defaultProvider != null && defaultProvider.getShippingCost() != null;
+    }
+    public boolean validateReorderPointFields(Product product) {
+        if (product.getAnnualDemand() == null ||
+                product.getFixedLotPolicy() == null ||
+                product.getFixedLotPolicy().getSafetyStock() == null) {
+            return false;
+        }
+
+        ProductProvider defaultProvider = product.getProductProviders().stream()
+                .filter(ProductProvider::getIsDefault)
+                .findFirst()
+                .orElse(null);
+
+        return defaultProvider != null && defaultProvider.getLeadTime() != null;
+    }
+
+    public boolean validateMaxInventoryLevelFields(Product product) {
+        if (product.getAnnualDemand() == null ||
+                product.getFixedIntervalPolicy() == null ||
+                product.getFixedIntervalPolicy().getReviewIntervalDays() == null ||
+                product.getFixedIntervalPolicy().getSafetyStock() == null) {
+            return false;
+        }
+
+        ProductProvider defaultProvider = product.getProductProviders().stream()
+                .filter(ProductProvider::getIsDefault)
+                .findFirst()
+                .orElse(null);
+
+        return defaultProvider != null && defaultProvider.getLeadTime() != null;
+    }
+
+
 }

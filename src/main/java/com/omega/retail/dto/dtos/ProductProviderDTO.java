@@ -26,7 +26,4 @@ public class ProductProviderDTO {
     @NotNull
     @Positive
     private Double shippingCost;
-
-    @NotNull
-    private Boolean isDefault;
 }
