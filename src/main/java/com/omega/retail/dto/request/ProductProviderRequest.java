@@ -1,4 +1,4 @@
-package com.omega.retail.dto.dtos;
+package com.omega.retail.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -11,10 +11,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ProductProviderDTO {
+public class ProductProviderRequest {
     @NotNull
     private Long providerId;
-
+    @NotNull
+    private Long productId;
     @NotNull
     @Positive
     private Double unitCost;

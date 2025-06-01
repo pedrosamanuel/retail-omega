@@ -10,7 +10,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProductProviderResponse {
+    private Long id;
     private Long providerId;
+    private Long productId;
     private String providerName;
     private Double unitCost;
     private Integer leadTime;

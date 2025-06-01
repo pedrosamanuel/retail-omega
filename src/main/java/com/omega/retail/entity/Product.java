@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -34,7 +35,7 @@ public class Product {
     private InventoryPolicy inventoryPolicy;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<ProductProvider> productProviders;
+    private List<ProductProvider> productProviders = new ArrayList<>();
     @OneToOne(optional = true, cascade = CascadeType.ALL)
     @JoinColumn(name = "fixedLotPolicy_id")
     private FixedLotPolicy fixedLotPolicy;

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -19,5 +20,5 @@ public class Sale {
     private Double total;
 
     @OneToMany(mappedBy = "sale")
-    private List<SaleDetail> details;
+    private List<SaleDetail> details = new ArrayList<>();
 }

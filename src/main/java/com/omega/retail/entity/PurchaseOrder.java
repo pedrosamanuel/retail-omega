@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -22,7 +23,7 @@ public class PurchaseOrder {
     private Double total;
     private PurchaseOrderState purchaseOrderState;
     @OneToMany(mappedBy = "purchaseOrder")
-    private List<PurchaseOrderDetail> details;
+    private List<PurchaseOrderDetail> details = new ArrayList<>();
     @ManyToOne
     @JoinColumn(name = "provider_id")
     private Provider provider;

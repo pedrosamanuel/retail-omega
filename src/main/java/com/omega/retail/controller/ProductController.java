@@ -45,12 +45,6 @@ public class ProductController {
         return ResponseEntity.status(204).build();
     }
 
-    @PutMapping("/{productId}/providers/{providerId}")
-    public ResponseEntity<String> setDefaultProvider(@PathVariable Long productId, @PathVariable Long providerId){
-        productService.setDefaultProvider(productId,providerId);
-        return ResponseEntity.ok("Provider set default correctly");
-    }
-
     @GetMapping("/belowSecurityStock")
     public ResponseEntity<List<ProductResponse>> getProductsBelowSecurityStock() {
         return ResponseEntity.ok(productService.getProductsBelowSecurityStock());

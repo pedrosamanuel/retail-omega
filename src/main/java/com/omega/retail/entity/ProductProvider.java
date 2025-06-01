@@ -1,12 +1,13 @@
 package com.omega.retail.entity;
 
+import com.omega.retail.enums.ProductProviderState;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
 
 @Entity
 @Data
@@ -22,7 +23,9 @@ public class ProductProvider {
     private Integer leadTime;
     private Double shippingCost;
     private Boolean isDefault;
-
+    @Enumerated(EnumType.STRING)
+    private ProductProviderState productProviderState;
+    private LocalDate deactivationDate;
     @ManyToOne
     private Product product;
 

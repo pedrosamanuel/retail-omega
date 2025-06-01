@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -28,8 +29,8 @@ public class Provider {
     private LocalDate deactivateDate;
 
     @OneToMany(mappedBy = "provider")
-    private List<PurchaseOrder> purchaseOrders;
+    private List<PurchaseOrder> purchaseOrders = new ArrayList<>();
 
     @OneToMany(mappedBy = "provider")
-    private List<ProductProvider> products;
+    private List<ProductProvider> products = new ArrayList<>();
 }
