@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -43,6 +42,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
       )
     """, nativeQuery = true)
     List<Product> findBelowReorderPointWithoutPendingOrders(@Param("states") List<PurchaseOrderState> states);
+
+    @Query("SELECT p FROM Product p " +
+            "JOIN p.productProviders pp " +
+            "WHERE pp.provider.id = :providerId " +
+            "AND p.productState = 'ALTA' " +
+            "AND pp.productProviderState = 'ALTA'")
+    List<Product> findActiveProductsByProviderId(Long providerId);
 
     @Modifying
     @Query("UPDATE ProductProvider pp SET pp.isDefault = false WHERE pp.product.id = :productId")

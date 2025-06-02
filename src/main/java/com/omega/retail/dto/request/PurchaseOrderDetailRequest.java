@@ -11,13 +11,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SaleDetailRequest {
+public class PurchaseOrderDetailRequest {
+    @NotNull
+    private Long productId;
+
     @NotNull
     @Positive
     private Integer quantity;
-    @NotNull
-    @Positive
-    private Double unitPrice;
-    @NotNull
-    private Long productId;
 }

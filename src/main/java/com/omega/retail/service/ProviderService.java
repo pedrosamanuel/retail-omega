@@ -5,6 +5,7 @@ import com.omega.retail.entity.Provider;
 import com.omega.retail.enums.ProviderState;
 import com.omega.retail.enums.PurchaseOrderState;
 import com.omega.retail.repository.ProviderRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +37,7 @@ public class ProviderService {
 
     public ProviderResponse getProvider(Long id) {
         Provider provider = providerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Provider not found with " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Provider not found with id: " + id));
         return toResponse(provider);
     }
 
@@ -51,9 +52,15 @@ public class ProviderService {
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
+
+    public List<ProviderResponse> getProvidersByProduct(Long productId) {
+        return providerRepository.findActiveProvidersByProductId(productId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
     public ProviderResponse updateProvider(Long id, ProviderRequest request) {
         Provider provider = providerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Provider not found with " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Provider not found with id: " + id));
         provider.setName(request.getName());
         provider.setEmail(request.getEmail());
         provider.setPhone(request.getPhone());
@@ -63,13 +70,13 @@ public class ProviderService {
 
     public void deleteProvider(Long id) {
         if (!providerRepository.existsById(id)) {
-            throw new RuntimeException("Provider not found with " + id);
+            throw new EntityNotFoundException("Provider not found with id: " + id);
         }
         if(providerRepository.existsDefaultProvider(id)){
-            throw new RuntimeException("Provider is default of at least one product");
+            throw new RuntimeException("No se puede eliminar porque es el predeterminado de al menos un producto");
         }
         if(providerRepository.existsByOrderStatus(id, List.of(PurchaseOrderState.PENDIENTE, PurchaseOrderState.ENVIADA))){
-            throw new RuntimeException("There is a pending or sent purchase order");
+            throw new RuntimeException("No se puede eliminar porque tiene ordenes pendientes o enviadas");
         }
         Optional<Provider> providerOptional = providerRepository.findById(id);
         if(providerOptional.isPresent()){

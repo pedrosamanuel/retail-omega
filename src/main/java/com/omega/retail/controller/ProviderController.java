@@ -35,8 +35,13 @@ public class ProviderController {
         List<ProviderResponse> list = providerService.getAllProviders();
         return ResponseEntity.ok(list);
     }
+    @GetMapping("/product/{productId}")
+    public ResponseEntity<List<ProviderResponse>> getProvidersByProduct(@PathVariable Long productId) {
+        List<ProviderResponse> providers = providerService.getProvidersByProduct(productId);
+        return ResponseEntity.ok(providers);
+    }
 
-    @GetMapping("/active")
+        @GetMapping("/active")
     public ResponseEntity<List<ProviderResponse>> getProvidersNotDeactivated() {
         List<ProviderResponse> response = providerService.getProvidersNotDeactivated();
         return ResponseEntity.ok(response);

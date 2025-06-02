@@ -3,6 +3,7 @@ package com.omega.retail.controller;
 import com.omega.retail.dto.request.ProductRequest;
 import com.omega.retail.dto.response.ProductResponse;
 import com.omega.retail.service.ProductService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductResponse> createProduct(@RequestBody ProductRequest request) {
+    public ResponseEntity<ProductResponse> createProduct(@RequestBody @Valid ProductRequest request) {
         return ResponseEntity.ok(productService.createProduct(request));
     }
 
@@ -52,5 +53,10 @@ public class ProductController {
     @GetMapping("/belowReorderPoint")
     public ResponseEntity<List<ProductResponse>> getProductsBelowReorderPoint() {
         return ResponseEntity.ok(productService.getProductsBelowReorderPointWithoutPendingOrders());
+    }
+    @GetMapping("/provider/{providerId}")
+    public ResponseEntity<List<ProductResponse>> getActiveProductsByProvider(@PathVariable Long providerId) {
+        List<ProductResponse> products = productService.getActiveProductsByProvider(providerId);
+        return ResponseEntity.ok(products);
     }
 }

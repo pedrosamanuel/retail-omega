@@ -9,13 +9,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SaleDetailResponse {
+public class PurchaseOrderDetailResponse {
     private Long id;
     private Integer quantity;
-    private Double unitPrice;
+    private Double price;
     private Double subtotal;
-
     private Long productId;
-    private String productCode;
     private String productDescription;
 }

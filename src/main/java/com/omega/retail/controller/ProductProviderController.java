@@ -3,6 +3,7 @@ package com.omega.retail.controller;
 import com.omega.retail.dto.request.ProductProviderRequest;
 import com.omega.retail.dto.response.ProductProviderResponse;
 import com.omega.retail.service.ProductProviderService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,7 +37,7 @@ public class ProductProviderController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductProviderResponse> create(@RequestBody ProductProviderRequest request) {
+    public ResponseEntity<ProductProviderResponse> create(@RequestBody  @Valid ProductProviderRequest request) {
         ProductProviderResponse created = productProviderService.create(request);
         return ResponseEntity.ok(created);
     }

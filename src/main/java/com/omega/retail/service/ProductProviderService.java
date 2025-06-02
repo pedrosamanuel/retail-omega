@@ -10,6 +10,7 @@ import com.omega.retail.enums.ProductProviderState;
 import com.omega.retail.repository.ProductProviderRepository;
 import com.omega.retail.repository.ProductRepository;
 import com.omega.retail.repository.ProviderRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,15 +43,15 @@ public class ProductProviderService {
 
     public ProductProviderResponse getById(Long id) {
         ProductProvider pp = productProviderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("ProductProvider not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Product Provider not found"));
         return toResponse(pp);
     }
 
     public ProductProviderResponse create(ProductProviderRequest request) {
         Product product = productRepository.findById(request.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Product with id "+ request.getProductId() + "not found"));
         Provider provider = providerRepository.findById(request.getProviderId())
-                .orElseThrow(() -> new RuntimeException("Provider not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Provider " + request.getProviderId() +"not found"));
 
         ProductProvider pp = ProductProvider.builder()
                 .product(product)
@@ -70,17 +71,17 @@ public class ProductProviderService {
 
     public ProductProviderResponse update(Long id, ProductProviderRequest request) {
         ProductProvider pp = productProviderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("ProductProvider not found"));
+                .orElseThrow(() -> new EntityNotFoundException("ProductProvider not found"));
 
         if (request.getProductId() != null) {
             Product product = productRepository.findById(request.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found"));
+                    .orElseThrow(() -> new EntityNotFoundException("Product with id "+ request.getProductId() + "not found"));
             pp.setProduct(product);
         }
 
         if (request.getProviderId() != null) {
             Provider provider = providerRepository.findById(request.getProviderId())
-                    .orElseThrow(() -> new RuntimeException("Provider not found"));
+                    .orElseThrow(() -> new EntityNotFoundException("Provider " + request.getProviderId() +"not found"));
             pp.setProvider(provider);
         }
 
@@ -99,7 +100,7 @@ public class ProductProviderService {
                 .orElseThrow(() -> new RuntimeException("ProductProvider not found"));
 
         if (Boolean.TRUE.equals(productProvider.getIsDefault())) {
-            throw new IllegalStateException("Cannot delete default provider.");
+            throw new RuntimeException("No se puede eliminar el proveedor predeterminado.");
         }
 
         productProvider.setDeactivationDate(LocalDate.now());

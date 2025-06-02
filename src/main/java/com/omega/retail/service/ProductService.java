@@ -5,13 +5,12 @@ import com.omega.retail.dto.dtos.FixedLotPolicyDTO;
 import com.omega.retail.dto.request.ProductRequest;
 import com.omega.retail.dto.response.ProductProviderResponse;
 import com.omega.retail.dto.response.ProductResponse;
-import com.omega.retail.entity.FixedIntervalPolicy;
-import com.omega.retail.entity.FixedLotPolicy;
-import com.omega.retail.entity.Product;
+import com.omega.retail.entity.*;
 import com.omega.retail.enums.InventoryPolicy;
 import com.omega.retail.enums.ProductState;
 import com.omega.retail.enums.PurchaseOrderState;
 import com.omega.retail.repository.ProductRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -60,8 +59,6 @@ public class ProductService {
 
         product = productRepository.save(product);
 
-        calculationService.updateCalculatedFields(product);
-
         return toResponse(product);
     }
     
@@ -70,7 +67,8 @@ public class ProductService {
     }
     
     public ProductResponse getById(Long id) {
-        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = productRepository.findById(id).orElseThrow(() ->
+                new EntityNotFoundException("Product with id "+ id + "not found"));
         return toResponse(product);
     }
 
@@ -82,10 +80,18 @@ public class ProductService {
         return productRepository.findBelowReorderPointWithoutPendingOrders(List.of(PurchaseOrderState.PENDIENTE,PurchaseOrderState.ENVIADA))
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
+    public List<ProductResponse> getActiveProductsByProvider(Long providerId) {
+        return productRepository.findActiveProductsByProviderId(providerId)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
 
     @Transactional
     public ProductResponse update(Long id, ProductRequest request) {
-        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Product with id "+ id + "not found"));
     
         product.setCode(request.getCode());
         product.setDescription(request.getDescription());
@@ -105,10 +111,10 @@ public class ProductService {
     
     public void delete(Long id) {
         if (productRepository.existsByCurrentStock(id)){
-            throw new RuntimeException("Product has current stock");
+            throw new RuntimeException("No se puede eliminar porque el producto tiene stock");
         }
         if (productRepository.existsByActivePurchaseOrder(id, List.of(PurchaseOrderState.PENDIENTE, PurchaseOrderState.ENVIADA))) {
-            throw new RuntimeException("Product is associated with a sent or pending purchase order");
+            throw new RuntimeException("No se puede eliminar porque el producto tiene una orden pendiente o enviada");
         }
         Optional<Product> productOptional = productRepository.findById(id);
         if(productOptional.isPresent()){
@@ -117,10 +123,28 @@ public class ProductService {
             product.setProductState(ProductState.BAJA);
             productRepository.save(product);
         }else {
-            throw new RuntimeException("Product not found");
+            throw new EntityNotFoundException("Product with id "+ id + "not found");
         }
     }
 
+    @Transactional
+    public void reduceStock(List<SaleDetail> saleDetails) {
+        for (SaleDetail detail : saleDetails) {
+            Product product = detail.getProduct();
+
+            product.setCurrentStock(product.getCurrentStock() - detail.getQuantity());
+            productRepository.save(product);
+        }
+    }
+    @Transactional
+    public void increaseStock(List<PurchaseOrderDetail> orderDetails) {
+        for (PurchaseOrderDetail detail : orderDetails) {
+            Product product = detail.getProduct();
+
+            product.setCurrentStock(product.getCurrentStock() + detail.getQuantity());
+            productRepository.save(product);
+        }
+    }
 
 
     private ProductResponse toResponse(Product product) {

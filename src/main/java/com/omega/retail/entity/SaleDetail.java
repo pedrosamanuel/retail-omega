@@ -1,17 +1,22 @@
 package com.omega.retail.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Builder
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class SaleDetail {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @NotNull
-    @Positive
+
     private Integer quantity;
     private Double unitPrice;
     private Double subtotal;

@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -31,4 +30,14 @@ public interface ProviderRepository extends JpaRepository<Provider, Long> {
 
     @Query(nativeQuery = true, value = "SELECT * FROM provider p WHERE p.provider_state = 'ALTA'")
     List<Provider> findByNotDeactivated();
+
+    @Query("""
+    SELECT pp.provider
+    FROM ProductProvider pp
+    WHERE pp.product.id = :productId
+      AND pp.productProviderState = 'ALTA'
+      AND pp.provider.providerState = 'ALTA'
+""")
+    List<Provider> findActiveProvidersByProductId(@Param("productId") Long productId);
+
 }
