@@ -116,7 +116,7 @@ public class CalculationService {
 
                 Double unitCost =  defaultProvider.getUnitCost();
                 Double shippingCost = defaultProvider.getShippingCost();
-                Integer dailyDemand = demand/365;
+                Float dailyDemand = demand/365f;
                 Integer leadTime = defaultProvider.getLeadTime();
                 Integer maxInventoryLevel = product.getFixedIntervalPolicy().getMaxInventoryLevel();
                 Integer reviewIntervalDays = product.getFixedIntervalPolicy().getReviewIntervalDays();
@@ -164,7 +164,9 @@ public class CalculationService {
         }
     }
     public boolean validateOptimalLotSizeFields(Product product) {
-        if (product.getAnnualDemand() == null || product.getStorageCost() == null) {
+        if (product.getAnnualDemand() == null ||
+                product.getStorageCost() == null ||
+                product.getInventoryPolicy() != InventoryPolicy.LOTE_FIJO) {
             return false;
         }
 
@@ -178,7 +180,8 @@ public class CalculationService {
     public boolean validateReorderPointFields(Product product) {
         if (product.getAnnualDemand() == null ||
                 product.getFixedLotPolicy() == null ||
-                product.getFixedLotPolicy().getSafetyStock() == null) {
+                product.getFixedLotPolicy().getSafetyStock() == null ||
+                product.getInventoryPolicy() != InventoryPolicy.LOTE_FIJO) {
             return false;
         }
 
@@ -194,7 +197,8 @@ public class CalculationService {
         if (product.getAnnualDemand() == null ||
                 product.getFixedIntervalPolicy() == null ||
                 product.getFixedIntervalPolicy().getReviewIntervalDays() == null ||
-                product.getFixedIntervalPolicy().getSafetyStock() == null) {
+                product.getFixedIntervalPolicy().getSafetyStock() == null ||
+                product.getInventoryPolicy() != InventoryPolicy.INTERVALO_FIJO ) {
             return false;
         }
 

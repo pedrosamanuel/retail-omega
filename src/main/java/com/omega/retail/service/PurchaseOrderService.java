@@ -261,7 +261,8 @@ public class PurchaseOrderService {
             orderRepository.save(order);
         }
     }
-    @Scheduled(cron = "0 0 2 * * *") // Todos los días a las 2:00 AM
+    @Scheduled(cron = "0 0 2 * * *")// Todos los días a las 2:00 AM
+    //@Scheduled(cron = "*/15 * * * * *") //para pruebas cada 15 segundos
     @Transactional
     public void generateScheduledPurchaseOrders() {
         LocalDate today = LocalDate.now();
@@ -273,12 +274,13 @@ public class PurchaseOrderService {
                 continue;
 
             FixedIntervalPolicy policy = product.getFixedIntervalPolicy();
-            if (policy == null || policy.getLastReviewDate() == null || policy.getReviewIntervalDays() == null)
+            if (policy == null || policy.getReviewIntervalDays() == null)
                 continue;
-
-            LocalDate nextReview = policy.getLastReviewDate().plusDays(policy.getReviewIntervalDays());
-            if (!today.isAfter(nextReview) && !today.isEqual(nextReview))
-                continue;
+            if(policy.getLastReviewDate() != null) {
+                LocalDate nextReview = policy.getLastReviewDate().plusDays(policy.getReviewIntervalDays());
+                if (!today.isAfter(nextReview) && !today.isEqual(nextReview))
+                    continue;
+            }
 
             // Proveedor predeterminado
             ProductProvider defaultProvider = product.getProductProviders().stream()

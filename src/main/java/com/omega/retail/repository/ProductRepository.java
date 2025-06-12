@@ -22,7 +22,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         FROM purchase_order po
         JOIN purchase_order_detail pod ON pod.purchase_order_id = po.id
         WHERE pod.product_id = :id
-        AND po.state IN (:states)
+        AND po.purchase_order_state IN (:states)
     """
     )
     boolean existsByActivePurchaseOrder(@Param("id") Long id, @Param("states") List<PurchaseOrderState> states);
@@ -38,7 +38,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         SELECT pod.product_id
         FROM purchase_order_detail pod
         JOIN purchase_order po ON po.id = pod.purchase_order_id
-        WHERE po.state IN (:states)
+        WHERE po.purchase_order_state IN (:states)
       )
     """, nativeQuery = true)
     List<Product> findBelowReorderPointWithoutPendingOrders(@Param("states") List<PurchaseOrderState> states);
