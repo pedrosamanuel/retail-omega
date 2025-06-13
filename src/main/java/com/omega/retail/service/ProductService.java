@@ -102,7 +102,10 @@ public class ProductService {
     
         product = productRepository.save(product);
 
-        calculationService.updateCalculatedFields(product);
+        Product updatedProduct = productRepository.findById(product.getId())
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        calculationService.updateCalculatedFields(updatedProduct);
     
         return toResponse(product);
     }

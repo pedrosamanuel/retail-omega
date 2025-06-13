@@ -112,38 +112,57 @@ public class PurchaseOrderService {
         Provider provider = providerRepository.findById(request.getProviderId())
                 .orElseThrow(() -> new RuntimeException("Proveedor no encontrado"));
 
-        List<PurchaseOrderDetail> newDetails = new ArrayList<>();
+        Map<Long, PurchaseOrderDetail> existingDetailsMap = order.getDetails().stream()
+                .collect(Collectors.toMap(detail -> detail.getProduct().getId(), detail -> detail));
+
+        List<PurchaseOrderDetail> updatedDetails = new ArrayList<>();
         double total = 0.0;
 
         for (PurchaseOrderDetailRequest d : request.getDetails()) {
             Product product = productRepository.findById(d.getProductId())
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-            double price = 0.0d;
-            for (ProductProvider pp : provider.getProducts()){
-                if (pp.getProduct().getId() == product.getId()){
+            double price = 0.0;
+            for (ProductProvider pp : provider.getProducts()) {
+                if (pp.getProduct().getId().equals(product.getId())) {
                     price = pp.getUnitCost();
+                    break;
                 }
             }
 
-            double subtotal = price * d.getQuantity();
-            total += subtotal;
 
-            PurchaseOrderDetail detail = PurchaseOrderDetail.builder()
-                    .product(product)
-                    .quantity(d.getQuantity())
-                    .price(price)
-                    .subtotal(subtotal)
-                    .purchaseOrder(order)
-                    .build();
+            PurchaseOrderDetail existingDetail = existingDetailsMap.get(product.getId());
+            if (existingDetail != null) {
+                int newQuantity = existingDetail.getQuantity() + d.getQuantity();
+                double newSubtotal = price * newQuantity;
 
-            newDetails.add(detail);
+                existingDetail.setQuantity(newQuantity);
+                existingDetail.setPrice(price);
+                existingDetail.setSubtotal(newSubtotal);
+
+                updatedDetails.add(existingDetail);
+                total += newSubtotal;
+            } else {
+                double subtotal = price * d.getQuantity();
+
+                PurchaseOrderDetail newDetail = PurchaseOrderDetail.builder()
+                        .product(product)
+                        .quantity(d.getQuantity())
+                        .price(price)
+                        .subtotal(subtotal)
+                        .purchaseOrder(order)
+                        .build();
+
+                updatedDetails.add(newDetail);
+                total += subtotal;
+            }
         }
 
         order.setProvider(provider);
         order.setTotal(total);
+
         order.getDetails().clear();
-        order.getDetails().addAll(newDetails);
+        order.getDetails().addAll(updatedDetails);
 
         return mapToResponse(orderRepository.save(order));
     }

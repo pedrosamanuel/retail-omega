@@ -90,7 +90,11 @@ public class ProductProviderService {
         pp.setShippingCost(request.getShippingCost());
 
         ProductProvider productProvider = productProviderRepository.save(pp);
-        calculationService.updateCalculatedFields(pp.getProduct());
+
+        Product updatedProduct = productRepository.findById(pp.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        calculationService.updateCalculatedFields(updatedProduct);
 
         return toResponse(productProvider);
     }
@@ -134,6 +138,9 @@ public class ProductProviderService {
 
         productProviderRepository.setDefaultById(productProviderId);
 
-        calculationService.updateCalculatedFields(selected.getProduct());
+        Product updatedProduct = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        calculationService.updateCalculatedFields(updatedProduct);
     }
 }
