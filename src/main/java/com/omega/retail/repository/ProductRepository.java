@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -49,15 +50,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "AND p.productState = 'ALTA' " +
             "AND pp.productProviderState = 'ALTA'")
     List<Product> findActiveProductsByProviderId(Long providerId);
-
-    @Modifying
-    @Query("UPDATE ProductProvider pp SET pp.isDefault = false WHERE pp.product.id = :productId")
-    void unsetAllDefaultByProduct(@Param("productId") Long productId);
-
-    @Modifying
-    @Query("UPDATE ProductProvider pp SET pp.isDefault = true WHERE pp.provider.id = :providerId AND pp.product.id = :productId"  )
-    void setDefaultById(@Param("productId") Long productId, @Param("providerId") Long providerId);
-
-
 
 }

@@ -135,12 +135,21 @@ public class ProductProviderService {
         Long productId = selected.getProduct().getId();
 
         productProviderRepository.unsetAllDefaultByProduct(productId);
-
         productProviderRepository.setDefaultById(productProviderId);
+
+        productProviderRepository.flush();
 
         Product updatedProduct = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
+
+        updatedProduct.getProductProviders().forEach(pp -> {
+            pp.setIsDefault(pp.getId().equals(productProviderId));
+        });
+
+
+
         calculationService.updateCalculatedFields(updatedProduct);
     }
+
 }

@@ -34,6 +34,5 @@ public class ProductRequest {
     private InventoryPolicy inventoryPolicy;
     @PositiveOrZero
     private Integer safetyStock;
-    @Positive
     private Integer reviewIntervalDays;
 }

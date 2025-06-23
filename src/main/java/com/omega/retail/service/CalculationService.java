@@ -8,6 +8,8 @@ import com.omega.retail.enums.InventoryPolicy;
 import com.omega.retail.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 @Service
@@ -100,8 +102,10 @@ public class CalculationService {
                 Double shippingCost = defaultProvider.getShippingCost();
 
                 Double totalCost = (demand/optimalLot)*shippingCost + (optimalLot/2)*storageCost + demand*unitCost;
+                BigDecimal roundedCost = new BigDecimal(totalCost)
+                        .setScale(2, RoundingMode.HALF_UP);
 
-                product.setTotalCost(totalCost);
+                product.setTotalCost(roundedCost.doubleValue());
             } else if (product.getInventoryPolicy() == InventoryPolicy.INTERVALO_FIJO) {
                 // Costo total = D * C + (D / Q) * S + ((Imax - d * L) / 2) * H
                 // donde:
