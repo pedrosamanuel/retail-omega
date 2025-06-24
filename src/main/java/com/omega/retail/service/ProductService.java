@@ -40,7 +40,7 @@ public class ProductService {
                 .currentStock(request.getCurrentStock())
                 .annualDemand(request.getAnnualDemand())
                 .storageCost(request.getStorageCost())
-                .productState(ProductState.AlTA)
+                .productState(ProductState.ALTA)
                 .inventoryPolicy(request.getInventoryPolicy())
                 .build();
 
