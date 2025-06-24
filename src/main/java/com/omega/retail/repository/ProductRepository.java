@@ -29,21 +29,42 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     )
     boolean existsByActivePurchaseOrder(@Param("id") Long id, @Param("states") List<PurchaseOrderState> states);
 
-    @Query("SELECT p FROM Product p WHERE p.currentStock < p.fixedLotPolicy.safetyStock OR p.currentStock < p.fixedIntervalPolicy.safetyStock")
+    @Query(value = """
+        SELECT *
+        FROM product p
+        WHERE p.product_state = 'ALTA'
+          AND (
+            (p.inventory_policy = 'LOTE_FIJO' AND p.fixed_lot_policy_id IS NOT NULL AND p.current_stock < (
+              SELECT flp.safety_stock
+              FROM fixed_lot_policy flp
+              WHERE flp.id = p.fixed_lot_policy_id
+            ))
+            OR
+            (p.inventory_policy = 'INTERVALO_FIJO' AND p.fixed_interval_policy_id IS NOT NULL AND p.current_stock < (
+              SELECT fip.safety_stock
+              FROM fixed_interval_policy fip
+              WHERE fip.id = p.fixed_interval_policy_id
+            ))
+          )
+     """, nativeQuery = true)
     List<Product> findBelowStockSecurity();
 
-    @Query(value = """
-    SELECT p.*
-    FROM product p
-    WHERE p.current_stock < p.fixed_lot_policy.reorder_point
-      AND p.id NOT IN (
-        SELECT pod.product_id
-        FROM purchase_order_detail pod
-        JOIN purchase_order po ON po.id = pod.purchase_order_id
-        WHERE po.purchase_order_state IN (:states)
-      )
-    """, nativeQuery = true)
+
+
+    @Query("""
+        SELECT p
+        FROM Product p
+        WHERE p.currentStock < p.fixedLotPolicy.reorderPoint
+          AND p.productState = 'ALTA'
+          AND p.id NOT IN (
+            SELECT pod.product.id
+            FROM PurchaseOrderDetail pod
+            JOIN pod.purchaseOrder po
+            WHERE po.purchaseOrderState IN :states
+          )
+    """)
     List<Product> findBelowReorderPointWithoutPendingOrders(@Param("states") List<PurchaseOrderState> states);
+
 
     @Query("SELECT p FROM Product p " +
             "JOIN p.productProviders pp " +
