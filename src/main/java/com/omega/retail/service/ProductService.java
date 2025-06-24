@@ -65,7 +65,15 @@ public class ProductService {
     public List<ProductResponse> getAll() {
         return productRepository.findAll().stream().map(this::toResponse).collect(Collectors.toList());
     }
-    
+
+    public List<ProductResponse> getActiveProducts() {
+        return productRepository.findByProductState(ProductState.ALTA)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+
     public ProductResponse getById(Long id) {
         Product product = productRepository.findById(id).orElseThrow(() ->
                 new EntityNotFoundException("Product with id "+ id + "not found"));

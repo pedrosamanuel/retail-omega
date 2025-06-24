@@ -1,6 +1,7 @@
 package com.omega.retail.repository;
 
 import com.omega.retail.entity.Product;
+import com.omega.retail.enums.ProductState;
 import com.omega.retail.enums.PurchaseOrderState;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -50,5 +51,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "AND p.productState = 'ALTA' " +
             "AND pp.productProviderState = 'ALTA'")
     List<Product> findActiveProductsByProviderId(Long providerId);
+
+    List<Product> findByProductState(ProductState state);
 
 }
