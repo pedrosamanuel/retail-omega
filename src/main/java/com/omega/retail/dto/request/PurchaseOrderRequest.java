@@ -16,7 +16,6 @@ import java.util.List;
 @AllArgsConstructor
 public class PurchaseOrderRequest {
     @NotNull
-    @NotBlank
     private Long providerId;
     @Builder.Default
     @NotNull

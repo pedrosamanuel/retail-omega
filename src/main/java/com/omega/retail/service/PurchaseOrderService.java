@@ -50,6 +50,12 @@ public class PurchaseOrderService {
         List<PurchaseOrderDetail> details = new ArrayList<>();
         double total = 0.0;
 
+        PurchaseOrder order = PurchaseOrder.builder()
+                .createdAt(LocalDate.now())
+                .purchaseOrderState(PurchaseOrderState.PENDIENTE)
+                .provider(provider)
+                .build();
+
         for (PurchaseOrderDetailRequest d : request.getDetails()) {
             Product product = productRepository.findById(d.getProductId())
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
@@ -73,18 +79,14 @@ public class PurchaseOrderService {
                     .quantity(d.getQuantity())
                     .price(price)
                     .subtotal(subtotal)
+                    .purchaseOrder(order)
                     .build();
 
             details.add(detail);
         }
 
-        PurchaseOrder order = PurchaseOrder.builder()
-                .createdAt(LocalDate.now())
-                .purchaseOrderState(PurchaseOrderState.PENDIENTE)
-                .provider(provider)
-                .total(total)
-                .details(details)
-                .build();
+        order.setTotal(total);
+        order.setDetails(details);
 
         return mapToResponse(orderRepository.save(order));
     }
