@@ -125,8 +125,12 @@ public class CalculationService {
                 Integer maxInventoryLevel = product.getFixedIntervalPolicy().getMaxInventoryLevel();
                 Integer reviewIntervalDays = product.getFixedIntervalPolicy().getReviewIntervalDays();
 
-                Double totalCost = demand*unitCost + (demand/(dailyDemand*reviewIntervalDays))*shippingCost + ((maxInventoryLevel-dailyDemand*leadTime)/2)*storageCost;
+                double totalCost = demand*unitCost + (demand/(dailyDemand*reviewIntervalDays))*shippingCost + ((maxInventoryLevel-dailyDemand*leadTime)/2)*storageCost;
 
+                BigDecimal roundedCost = new BigDecimal(totalCost)
+                        .setScale(2, RoundingMode.HALF_UP);
+
+                product.setTotalCost(roundedCost.doubleValue());
 
                 product.setTotalCost(totalCost);
             }
