@@ -103,6 +103,7 @@ public class PurchaseOrderService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public PurchaseOrderResponse update(Long id, PurchaseOrderRequest request) {
         PurchaseOrder order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Orden de compra no encontrada"));
@@ -114,8 +115,10 @@ public class PurchaseOrderService {
         Provider provider = providerRepository.findById(request.getProviderId())
                 .orElseThrow(() -> new RuntimeException("Proveedor no encontrado"));
 
-        Map<Long, PurchaseOrderDetail> existingDetailsMap = order.getDetails().stream()
-                .collect(Collectors.toMap(detail -> detail.getProduct().getId(), detail -> detail));
+
+        order.getDetails().forEach(detail -> detail.setPurchaseOrder(null));
+        order.getDetails().clear();
+        orderRepository.save(order);
 
         List<PurchaseOrderDetail> updatedDetails = new ArrayList<>();
         double total = 0.0;
@@ -124,50 +127,37 @@ public class PurchaseOrderService {
             Product product = productRepository.findById(d.getProductId())
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-            double price = 0.0;
-            for (ProductProvider pp : provider.getProducts()) {
-                if (pp.getProduct().getId().equals(product.getId())) {
-                    price = pp.getUnitCost();
-                    break;
-                }
-            }
 
+            double price = provider.getProducts().stream()
+                    .filter(pp -> pp.getProduct().getId().equals(product.getId()))
+                    .map(ProductProvider::getUnitCost)
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("El proveedor no ofrece este producto"));
 
-            PurchaseOrderDetail existingDetail = existingDetailsMap.get(product.getId());
-            if (existingDetail != null) {
-                int newQuantity = existingDetail.getQuantity() + d.getQuantity();
-                double newSubtotal = price * newQuantity;
+            double subtotal = price * d.getQuantity();
 
-                existingDetail.setQuantity(newQuantity);
-                existingDetail.setPrice(price);
-                existingDetail.setSubtotal(newSubtotal);
+            PurchaseOrderDetail newDetail = PurchaseOrderDetail.builder()
+                    .product(product)
+                    .quantity(d.getQuantity())
+                    .price(price)
+                    .subtotal(subtotal)
+                    .purchaseOrder(order)
+                    .build();
 
-                updatedDetails.add(existingDetail);
-                total += newSubtotal;
-            } else {
-                double subtotal = price * d.getQuantity();
-
-                PurchaseOrderDetail newDetail = PurchaseOrderDetail.builder()
-                        .product(product)
-                        .quantity(d.getQuantity())
-                        .price(price)
-                        .subtotal(subtotal)
-                        .purchaseOrder(order)
-                        .build();
-
-                updatedDetails.add(newDetail);
-                total += subtotal;
-            }
+            updatedDetails.add(newDetail);
+            total += subtotal;
         }
+
 
         order.setProvider(provider);
         order.setTotal(total);
-
-        order.getDetails().clear();
+        updatedDetails.forEach(d -> d.setPurchaseOrder(order));
         order.getDetails().addAll(updatedDetails);
 
         return mapToResponse(orderRepository.save(order));
     }
+
+
 
     public void cancel(Long id) {
         PurchaseOrder order = orderRepository.findById(id)

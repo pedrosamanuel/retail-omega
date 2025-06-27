@@ -26,7 +26,7 @@ public class PurchaseOrder {
     private LocalDate receivedAt;
     private Double total;
     private PurchaseOrderState purchaseOrderState;
-    @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PurchaseOrderDetail> details = new ArrayList<>();
     @ManyToOne
     @JoinColumn(name = "provider_id")

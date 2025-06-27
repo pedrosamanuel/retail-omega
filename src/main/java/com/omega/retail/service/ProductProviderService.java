@@ -53,6 +53,12 @@ public class ProductProviderService {
         Provider provider = providerRepository.findById(request.getProviderId())
                 .orElseThrow(() -> new EntityNotFoundException("Provider " + request.getProviderId() +"not found"));
 
+        for(ProductProvider pp : product.getProductProviders()){
+            if(pp.getProvider().getId().equals(provider.getId())){
+                throw new RuntimeException("El proveedor ya esta agregado al producto");
+            }
+        }
+
         ProductProvider pp = ProductProvider.builder()
                 .product(product)
                 .provider(provider)
